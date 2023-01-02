@@ -1,6 +1,6 @@
 # RHCSA study notes
 
-This document contains my RHCSA study notes.
+This document contains my RHCSA (V8) study notes.
 
 ## Table of Contents
 
@@ -61,12 +61,12 @@ This document contains my RHCSA study notes.
 
 Documentation can be found using:
 
-* manual pages
-  * `man [COMMAND]`
-  * Traditional format
 * info command
   * `info [COMMAND]`
   * Default format with detailed information
+* manual pages
+  * `man [COMMAND]`
+  * Traditional format
 * Text documentation
   * `/usr/share/doc/`
   * Includes text documents
@@ -111,7 +111,7 @@ scp [USER]@[HOST_NAME]:[PATH/TO/FILE] [FILE]
 
 It is also possible to use FTP (using sftp) for FTP based transfers.
 
-Both on console and through SSH it is useful to be aware of terminal multiplexers like screen (traditional) and tmux (modern variant).
+Both on console and through SSH it is useful to be aware of terminal multiplexers like `screen` (traditional) and `tmux` (modern variant).
 
 To open a named screen session:
 
@@ -187,7 +187,7 @@ To surpress error messages we can throw them in `/dev/null`:
 
 #### Scripting
 
-I will need to be able to create some basic BASH scripts from the top of my head. I left out functions, advanced syntax, shellcheck linter, etc. in order to be able to remember this more easily and created a small example script for my own reference:
+The exam most likely will require to create some basic BASH scripts. I left out functions, advanced syntax, shellcheck linter, etc. in order to be able to remember this more easily and created a small example script as a reference:
 
 ```bash
 #!/bin/bash
@@ -204,19 +204,19 @@ if [ "$EUID" -ne 0 ]
 fi
 
 # Additional for loop with sequence example
-for i in `seq -w 1 100 do
+for i in $(seq -w 1 100); do
     echo "Counting.. $i"
 done
 
 # Check if file is given as input
-if [ "$USERFILE" = "" ] then
+if [ "$USERFILE" = "" ]; then
     echo "Please specify an input file"
     exit 10
 # If file exists add every user within that file
-elif test -e $USERFILE then
-    for user in `cat $USERFILE` do
-        echo "creating the "$user" user..."
-        useradd -m $user; echo "$user:linux" | chpasswd
+elif test -e "$USERFILE"; then
+    for user in $(cat "$USERFILE"); do
+        echo "creating user $user..."
+        useradd -m "$user"; echo "$user:linux" | chpasswd
     done
     exit 20
 # If file does not exist exit with an error
@@ -238,6 +238,7 @@ A link to a file can be created in two ways:
 * Hard link
   * ln [SOURCE] [TARGET]
   * A mirror copy of the file with the same inode number
+  * Can not be used for directories
 
 Find files by inode number (useful for finding hard links):
 
@@ -319,7 +320,7 @@ Scheduled tasks in Linux can be managed by:
 * Systemd timers
   * Modern alternative to both AT and CRON
 
-Most importantly for me will be cronjobs, which basically have the following syntax:
+Most importantly will be cronjobs, as AT jobs can be created interactively, which basically have the following syntax:
 
 ```bash
 SHELL=/bin/bash
@@ -712,13 +713,13 @@ vi /etc/fstab
   [NFS_IP]:[FOLDER]   [MOUNT_DIR] nfs defaults,_netdev 0 0
 ```
 
-Or using autofs, which will automatically mount the device when it is available or on demand (for example, when a user logs in):
+Or using autofs, which will automatically mount the device when it is available or on demand (for example, when a user logs in and has a NFS mounted home directory):
 
 ```bash
 vi /etc/auto.master
     /export/home /etc/auto.home
 vi /etc/auto.home
-    * 127.0.0.1:/home/& 
+    * [NFS_IP]:/home/& 
 systemctl enable --now autofs
 systemctl status autofs
 ```
@@ -795,6 +796,11 @@ Flush journal, if storage is persistent this will write to file, otherwise journ
 
 ```bash
 journalctl --flush
+```
+
+To restart the journald service:
+```bash
+systemctl restart systemd-journald
 ```
 
 ### Storage modes
@@ -1567,8 +1573,8 @@ Setup a webserver container:
 ```bash
 mkdir ~/web_container_1_data/
 skopeo inspect docker://registry.access.redhat.com/rhscl/httpd-24-rhel7 | less
-# Run the HTTPD container, name it, expose port 8000 and route to 8080 in the container and bind to a persistent storage volume:
-podman run -d --name web_container_1 -p 8000:8080 -v ~/web_container_1_data/:Z registry.access.redhat.com/rhscl/httpd-24-rhel7
+# Run the HTTPD container, name it, expose port 8000 and route to 8080 in the container and bind www data folder to a persistent storage volume:
+podman run -d --name web_container_1 -p 8000:8080 -v ~/web_container_1_data:/var/www:Z registry.access.redhat.com/rhscl/httpd-24-rhel7
 podman port -a # Show opened ports and port mapping
 curl http://127.0.0.1:8000 # Connect to webserver in container
 ```
@@ -1576,12 +1582,12 @@ curl http://127.0.0.1:8000 # Connect to webserver in container
 Setup a container managed as a systemd user service:
 
 ```bash
-loginctl enable-linger # Allow user services to be started at boot
+loginctl enable-linger [USER] # Allow user services to be started at boot
 loginctl show-user [USER] | grep -i linger # Check if enable-linger is enabled
 mkdir -p ~/.config/systemd/user/ # Create the systemd user service file directory
 mkdir -p [PERSISTENT_STORAGE] # Create the persistent storage directory for the container
-podman run -d --name [CONTAINER_NAME] -p [EXPOSED_PORT:CONTAINER_PORT] -v [PERSISTENT_STORAGE]:Z [CONTAINER_IMAGE] # Setup and run the container
-podman generate systemd --name [UNIT_NAME] --files --new # Generate a systemd unit file from the running container
+podman run -d --name [CONTAINER_NAME] -p [EXPOSED_PORT:CONTAINER_PORT] -v [PERSISTENT_STORAGE]:[CONTAINER_PATH]:Z [CONTAINER_IMAGE] # Setup and run the container
+podman generate systemd [CONTAINER_NAME] --name --files --new # Generate a systemd unit file from the running container
 systemctl --user daemon-reload # Loads new systemd service files
 podman stop [CONTAINER_NAME] # Stop the running container
 podman rm [CONTAINER_NAME] # Remove the created container
