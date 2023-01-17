@@ -799,6 +799,7 @@ journalctl --flush
 ```
 
 To restart the journald service:
+
 ```bash
 systemctl restart systemd-journald
 ```
